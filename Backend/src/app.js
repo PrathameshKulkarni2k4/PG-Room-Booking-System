@@ -1,6 +1,7 @@
 import express from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
+import { errorHandler } from "./utils/errorHandler.js"
 
 const app = express()
 
@@ -19,7 +20,7 @@ app.use(cookieParser())
 
 //routes import
 import userRouter from './routes/user.route.js'
-import roomRouter from './routes/room.route.js'
+import roomRouter from './Routes/room.route.js'
 import ownerRoter from './routes/owner.route.js'
 
 //routers declaration
@@ -34,6 +35,6 @@ app.use("/api/v1/owner", ownerRoter)
 // http://localhost:8000/api/v1/rooms/register
 
 // http://localhost:8000/api/v1/owner/register
-
+app.use(errorHandler)
 
 export { app }

@@ -1,34 +1,65 @@
-import React from "react";
-import { FaEdit, FaPlus, FaHome, FaEnvelope, FaPhoneAlt, FaUser } from "react-icons/fa";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import {
+  FaEdit,
+  FaPlus,
+  FaHome,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaUser,
+  FaTrash,
+} from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 const OwnerProfile = () => {
-  const ownerData = {
-    name: "Ravi Patil",
-    email: "raviowner@example.com",
-    phone: "+91 9898989898",
-    properties: [
-      {
-        id: 1,
-        title: "1 Big Hall at Ichalkaranji",
-        location: "Ichalkaranji",
-        description: "Spacious hall ideal for students or small families.",
-      },
-      {
-        id: 2,
-        title: "2BHK Flat at Sangli",
-        location: "Sangli",
-        description: "Well-furnished 2BHK with balcony and parking.",
-      },
-    ],
+  const [ownerData, setOwnerData] = useState(null);
+
+  const fetchOwnerProfile = async () => {
+    try {
+      const res = await axios.get("/api/v1/owner/profile", {
+        withCredentials: true,
+      });
+      if (res.data.success) {
+        setOwnerData(res.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching owner profile:", error);
+    }
   };
+
+  useEffect(() => {
+    fetchOwnerProfile();
+  }, []);
+
+  const handleDeleteRoom = async (roomId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this room?");
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`/api/v1/rooms/${roomId}`, { withCredentials: true });
+      setOwnerData((prevData) => ({
+        ...prevData,
+        rooms: prevData.rooms.filter((room) => room._id !== roomId),
+      }));
+      alert("Room deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete room:", error);
+      alert("Failed to delete room");
+    }
+  };
+
+  if (!ownerData) {
+    return <div className="text-center py-10">Loading profile...</div>;
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       {/* Header */}
       <div className="mb-10">
         <h2 className="text-4xl font-bold text-[#7472E0] mb-2">Owner Profile</h2>
-        <p className="text-gray-600">Manage your property listings and profile information</p>
+        <p className="text-gray-600">
+          Manage your property listings and profile information
+        </p>
       </div>
 
       {/* Owner Info */}
@@ -37,7 +68,7 @@ const OwnerProfile = () => {
           <FaUser className="text-[#7472E0] text-xl mt-1" />
           <div>
             <p className="font-semibold text-gray-700 text-sm">Name</p>
-            <p className="text-lg">{ownerData.name}</p>
+            <p className="text-lg">{ownerData.fullName}</p>
           </div>
         </div>
         <div className="flex items-start gap-4">
@@ -51,7 +82,7 @@ const OwnerProfile = () => {
           <FaPhoneAlt className="text-[#7472E0] text-xl mt-1" />
           <div>
             <p className="font-semibold text-gray-700 text-sm">Contact</p>
-            <p className="text-lg">{ownerData.phone}</p>
+            <p className="text-lg">{ownerData.phoneNo}</p>
           </div>
         </div>
       </div>
@@ -70,26 +101,42 @@ const OwnerProfile = () => {
       </div>
 
       {/* Room Cards */}
-      <div className="grid sm:grid-cols-2 gap-6">
-        {ownerData.properties.map((room) => (
-          <div
-            key={room.id}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition"
-          >
-            <h4 className="text-xl font-semibold text-[#7472E0] mb-2">{room.title}</h4>
-            <p className="text-sm text-gray-600 mb-1">
-              <span className="font-medium text-gray-700">Location:</span> {room.location}
-            </p>
-            <p className="text-sm text-gray-600 mb-4">{room.description}</p>
+      {ownerData.rooms.map((room) => (
+        <div
+          key={room._id}
+          onClick={() => window.location.href = `/rooms/${room._id}`}
+          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition relative cursor-pointer"
+        >
+          <h4 className="text-xl font-semibold text-[#7472E0] mb-2">{room.name}</h4>
+          <p className="text-sm text-gray-600 mb-1">
+            <span className="font-medium text-gray-700">Location:</span> {room.address}
+          </p>
+          <p className="text-sm text-gray-600 mb-4">
+            <span className="font-medium text-gray-700">Price:</span> ₹{room.price}
+          </p>
+
+          <div className="flex justify-between items-center mt-4">
             <Link
-              to={`/edit-room/${room.id}`}
+              to={`/edit-room/${room._id}`}
+              onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-2 text-[#7472E0] text-sm font-medium hover:underline"
             >
               <FaEdit /> Edit Room Details
             </Link>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteRoom(room._id);
+              }}
+              className="inline-flex items-center gap-2 text-red-500 hover:text-red-600 text-sm font-medium"
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
+
     </div>
   );
 };

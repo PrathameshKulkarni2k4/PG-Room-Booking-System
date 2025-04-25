@@ -1,217 +1,171 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { IoIosArrowBack } from "react-icons/io";
-import { FaStar } from "react-icons/fa";
+import axios from "axios";
 
 const AddRoom = () => {
-  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [price, setPrice] = useState("");
+  const [facilities, setFacilities] = useState([]);
+  const [images, setImages] = useState([]);
+  const [message, setMessage] = useState("");
+  const [createdRoom, setCreatedRoom] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    roomName: "",
-    ownerName: "",
-    email: "",
-    phone: "",
-    altPhone: "",
-    address: "",
-    landmark: "",
-    city: "",
-    state: "",
-    availabilityDate: "",
-    facilities: [],
-    status: "Available",
-    images: [],
-    partners: 3,
-  });
-
-  const facilityOptions = [
-    "Kitchen Facilities", "Internet availability(Wi-Fi)", "Parking Facilities",
-    "Hot Water", "Attach bathroom", "Balcony", "Bed", "Wardrobe",
-    "Chair", "Desk", "single room", "shared room"
+  const availableFacilities = [
+    "Wi-Fi",
+    "Hot Water",
+    "Kitchen",
+    "Parking",
+    "Attach Bathroom",
+    "Balcony",
+    "Bed",
+    "Chair",
+    "Desk",
+    "Wardrobe"
   ];
 
-  const handleInputChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleFacilityChange = (e) => {
+    const { value, checked } = e.target;
+    setFacilities((prev) =>
+      checked ? [...prev, value] : prev.filter((item) => item !== value)
+    );
   };
 
-  const handleFacilityToggle = (facility) => {
-    setForm((prev) => ({
-      ...prev,
-      facilities: prev.facilities.includes(facility)
-        ? prev.facilities.filter((f) => f !== facility)
-        : [...prev.facilities, facility],
-    }));
+  const handleImageChange = (e) => {
+    setImages([...e.target.files]);
   };
 
-  const handleImageUpload = (e) => {
-    const newFiles = Array.from(e.target.files);
-    const totalImages = [...form.images, ...newFiles];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
-    if (totalImages.length > 3) {
-      alert("You can only upload a maximum of 3 images.");
-      setForm({ ...form, images: totalImages.slice(0, 3) });
-    } else {
-      setForm({ ...form, images: totalImages });
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("address", address);
+    formData.append("price", price);
+    formData.append("facilities", JSON.stringify(facilities));
+    images.forEach((image) => formData.append("images", image));
+
+    // Get token from localStorage
+    const token = localStorage.getItem("ownertoken");
+    console.log("this is owenr token : ",token);
+    
+    try {
+      const response = await axios.post(
+        "/api/v1/rooms/register",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${token}`, // Add token to request headers
+          },
+        }
+      );
+
+      if (response.status === 201) {
+        setMessage(response.data.message);
+        setCreatedRoom(response.data.data);
+        setName("");
+        setAddress("");
+        setPrice("");
+        setFacilities([]);
+        setImages([]);
+      } else {
+        setMessage("Failed to create room.");
+      }
+    } catch (error) {
+      console.log(error);
+    
+      if (error.response && error.response.data && error.response.data.message) {
+        setMessage(error.response.data.message); // Show server error
+      } else {
+        setMessage("An error occurred while creating the room."); // Fallback
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveImage = (index) => {
-    const updatedImages = form.images.filter((_, i) => i !== index);
-    setForm({ ...form, images: updatedImages });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert("Room details submitted!");
-  };
-
   return (
-    <div className="bg-orange-100 min-h-screen p-6 font-sans">
-      {/* Back Button */}
-      <button onClick={() => navigate(-1)} className="text-2xl text-black mb-4">
-        <IoIosArrowBack />
-      </button>
-
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-lg space-y-6">
-
-        {/* Room Name */}
+    <div className="p-4 max-w-xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4">Add New Room</h2>
+      {message && <p className="mb-4 text-green-600">{message}</p>}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
-          name="roomName"
-          placeholder="--Enter Room name--"
-          value={form.roomName}
-          onChange={handleInputChange}
-          className="block mx-auto text-center px-4 py-2 w-72 bg-yellow-100 rounded-full border border-gray-300"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Room Name"
+          required
+          className="w-full p-2 border"
+        />
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Address"
+          required
+          className="w-full p-2 border"
+        />
+        <input
+          type="number"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="Price"
+          required
+          min="0"
+          className="w-full p-2 border"
         />
 
-        {/* Owner Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { name: "ownerName", placeholder: "--Room owner name--" },
-            { name: "email", placeholder: "--email address--" },
-            { name: "phone", placeholder: "--Phone number--" },
-            { name: "altPhone", placeholder: "--Alternate Phone number--" },
-            { name: "address", placeholder: "--Address--" },
-            { name: "landmark", placeholder: "--Land mark--" },
-            { name: "city", placeholder: "--City--" },
-            { name: "state", placeholder: "--State--" },
-          ].map((input, i) => (
-            <input
-              key={i}
-              name={input.name}
-              placeholder={input.placeholder}
-              value={form[input.name]}
-              onChange={handleInputChange}
-              className="px-4 py-2 rounded-full border bg-gray-100"
-            />
-          ))}
-        </div>
-
-        {/* Facilities */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#7472E0] mb-2">Facilities</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm font-medium">
-            {facilityOptions.map((facility, idx) => (
-              <label key={idx} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.facilities.includes(facility)}
-                  onChange={() => handleFacilityToggle(facility)}
-                />
-                {facility}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Availability & Status */}
-        <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
-          <div className="text-sm">
-            Availability Date:
-            <input
-              type="text"
-              name="availabilityDate"
-              placeholder="DD - MM - YYYY"
-              value={form.availabilityDate}
-              onChange={handleInputChange}
-              className="ml-2 px-3 py-1 rounded border border-gray-300"
-            />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, status: "Available" })}
-              className={`px-4 py-1 rounded-full ${form.status === "Available" ? "bg-[#7472E0] text-white" : "bg-gray-200"}`}
-            >
-              Available
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, status: "Sold" })}
-              className={`px-4 py-1 rounded-full ${form.status === "Sold" ? "bg-[#7472E0] text-white" : "bg-gray-200"}`}
-            >
-              Sold
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm">
-            Number of partners:
-            <span className="bg-purple-200 text-purple-800 rounded-full px-2 py-0.5 text-xs">
-              {form.partners}
-            </span>
-          </div>
-        </div>
-
-        {/* Ratings */}
-        <div className="flex flex-col items-center justify-center gap-2 mt-6">
-          <p className="font-semibold">Ratings</p>
-          <div className="flex text-yellow-400 text-xl">
-            {[...Array(5)].map((_, i) => (
-              <FaStar key={i} className={i < 2 ? "text-yellow-400" : "text-gray-300"} />
-            ))}
-          </div>
-        </div>
-
-        {/* Upload Images with Remove Option */}
-        <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
-          {form.images.map((img, i) => (
-            <div key={i} className="relative group">
-              <img
-                src={URL.createObjectURL(img)}
-                alt={`room-${i}`}
-                className="w-40 h-28 object-cover rounded-xl"
+        <div className="grid grid-cols-2 gap-2">
+          {availableFacilities.map((facility) => (
+            <label key={facility} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                value={facility}
+                checked={facilities.includes(facility)}
+                onChange={handleFacilityChange}
               />
-              <button
-                type="button"
-                onClick={() => handleRemoveImage(i)}
-                className="absolute top-1 right-1 text-xs text-white bg-black bg-opacity-60 hover:bg-opacity-80 rounded-full px-1"
-                title="Remove image"
-              >
-                ✕
-              </button>
-            </div>
+              <span>{facility}</span>
+            </label>
           ))}
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageUpload}
-            disabled={form.images.length >= 3}
-            className="bg-yellow-200 text-black px-4 py-2 rounded shadow"
-          />
         </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-center mt-10">
-          <button
-            type="submit"
-            className="bg-orange-400 text-white px-6 py-2 rounded-full shadow hover:bg-orange-500"
-          >
-            Add Room
-          </button>
-        </div>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleImageChange}
+          className="w-full"
+        />
+
+        <button
+          type="submit"
+          className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          disabled={loading}
+        >
+          {loading ? "Submitting..." : "Submit"}
+        </button>
       </form>
+
+      {createdRoom && (
+        <div className="mt-6 p-4 border rounded bg-gray-50">
+          <h3 className="text-lg font-semibold mb-2">Created Room Details</h3>
+          <p><strong>Name:</strong> {createdRoom.name}</p>
+          <p><strong>Address:</strong> {createdRoom.address}</p>
+          <p><strong>Price:</strong> ₹{createdRoom.price}</p>
+          <p><strong>Status:</strong> {createdRoom.status}</p>
+          <p><strong>Rating:</strong> {createdRoom.rating}</p>
+          <p><strong>Facilities:</strong> {createdRoom.facilities.join(", ")}</p>
+          <p><strong>Coordinates:</strong> [{createdRoom.location.coordinates.join(", ")}]</p>
+          <div className="flex gap-4 mt-2 flex-wrap">
+            {createdRoom.images.map((imgUrl, idx) => (
+              <img key={idx} src={imgUrl} alt="Room" className="h-20 rounded" />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

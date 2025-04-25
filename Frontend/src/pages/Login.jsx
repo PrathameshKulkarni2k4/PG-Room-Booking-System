@@ -17,7 +17,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "/api/v1/users/login", // 🔁 Make sure this matches your backend
+        "/api/v1/users/login", 
         formData,
         {
           headers: {
@@ -28,11 +28,18 @@ const Login = () => {
 
       if (response.status === 200) {
         // Save token & user data
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        const { accessToken, user } = response.data.data;
+        console.log(response);
+        
 
-        setMessage({ type: "success", text: "Login successful!" });
-        navigate("/rooms"); // 🚪 Redirect to protected page
+        localStorage.setItem("usertoken", accessToken);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        setMessage({ type: "success", text: `${response.data.message}` });
+        console.log("Redirecting to /rooms");
+        setTimeout(()=>{
+          navigate("/rooms");
+        },2000);
       }
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);

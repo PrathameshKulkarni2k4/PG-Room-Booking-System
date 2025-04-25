@@ -124,7 +124,7 @@ const logoutOwner = asyncHandler(async (req, res) => {
 });
 
 const getOwnerProfile = asyncHandler( async (req, res) => {
-    const owner = await Owner.findById(req.user._id).select("-password -refreshToken");
+    const owner = await Owner.findById(req.user._id).select("-password -refreshToken").populate("rooms");
 
     if (!owner) {
         throw new ApiError(404,"Owner not found")

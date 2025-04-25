@@ -38,7 +38,7 @@ const Signup = () => {
   
       if (res.status === 201 || res.status === 200) {
         setMessage("Signup successful!");
-        // navigate("/rooms");
+        navigate("/rooms");
         reset();
       }
     } catch (err) {

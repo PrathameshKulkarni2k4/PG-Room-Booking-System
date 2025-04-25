@@ -55,6 +55,12 @@ const registerRoom = asyncHandler(async (req, res) => {
         owner: req.user._id
     });
 
+    await Owner.findByIdAndUpdate(
+        req.user._id,
+        { $push: { rooms: newRoom._id } },
+        { new: true }
+    );
+
     return res
         .status(201)
         .json(new ApiResponse(201, newRoom, "Room registered successfully"));

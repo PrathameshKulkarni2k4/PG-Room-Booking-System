@@ -42,6 +42,7 @@ const App = () => {
             <AvailableRooms />
           </PrivateRoute>
         } />
+        
         <Route path="/rooms/:id" element={<RoomDetails />} />
         <Route path="/profile" element={<UserProfile />} />
         <Route path="/owner" element={<OwnerProfile />} />

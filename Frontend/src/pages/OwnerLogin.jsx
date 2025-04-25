@@ -32,11 +32,11 @@ const OwnerLogin = () => {
       if (response.status === 200) {
         const { accessToken, user } = response.data.data;
 
-        localStorage.setItem("token", accessToken);
+        localStorage.setItem("ownertoken", accessToken);
         localStorage.setItem("owner", JSON.stringify(user));
 
         setMessage({ type: "success", text: "Owner login successful!" });
-        navigate("/rooms"); // Change this path as needed
+        navigate("/owner"); 
       }
     } catch (error) {
       setMessage({
