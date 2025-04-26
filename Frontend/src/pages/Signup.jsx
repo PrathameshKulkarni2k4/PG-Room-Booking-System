@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom"; // ✅ import navigate
 import axios from "axios";
+import { toast, ToastContainer } from "react-toastify"; // ✅ toast import
+import "react-toastify/dist/ReactToastify.css"; // ✅ toast css
 import signupImg from "../assets/signup.png";
 
 const Signup = () => {
-  // const navigate = useNavigate();
-  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
@@ -15,13 +18,13 @@ const Signup = () => {
   } = useForm();
 
   const onSubmit = async (data) => {
-    setMessage("");
-  
     if (data.password !== data.confirmPassword) {
-      return setMessage("Passwords do not match");
+      toast.error("Passwords do not match");
+      return;
     }
-  
+
     try {
+      setLoading(true);
       const userData = {
         fullName: data.fullName,
         username: data.username,
@@ -29,26 +32,27 @@ const Signup = () => {
         phoneNo: data.phone,
         password: data.password,
       };
-  
+
       const res = await axios.post("/api/v1/users/register", userData, {
         headers: {
           "Content-Type": "application/json",
         },
       });
-  
+
       if (res.status === 201 || res.status === 200) {
-        setMessage("Signup successful!");
-        navigate("/rooms");
+        toast.success("Signup successful! Redirecting...");
         reset();
+        setTimeout(() => {
+          navigate("/rooms");
+        }, 1500); // wait 1.5 sec for user to see success toast
       }
     } catch (err) {
       console.error("Signup error:", err.response?.data || err.message);
-      setMessage(err.response?.data?.message || "Signup failed");
+      toast.error(err.response?.data?.message || "Signup failed");
+    } finally {
+      setLoading(false);
     }
   };
-  
-  
-  
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gray-50">
@@ -70,12 +74,6 @@ const Signup = () => {
           <h2 className="text-2xl font-bold text-center text-[#7472E0] mb-6">
             Create an Account
           </h2>
-
-          {message && (
-            <p className={`text-sm text-center mb-4 ${message.includes("successful") ? "text-green-600" : "text-red-600"}`}>
-              {message}
-            </p>
-          )}
 
           <input
             type="text"
@@ -144,28 +142,40 @@ const Signup = () => {
             {...register("confirmPassword", { required: true })}
             className="w-full p-3 mb-6 border rounded-md"
           />
+          {errors.confirmPassword && (
+            <p className="text-sm text-red-500 mb-2">
+              Please confirm your password
+            </p>
+          )}
 
           <button
             type="submit"
-            className="w-full bg-[#7472E0] text-white py-3 rounded-md hover:bg-indigo-700 transition"
+            disabled={loading}
+            className={`w-full py-3 rounded-md transition ${
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#7472E0] hover:bg-indigo-700 text-white"
+            }`}
           >
-            Sign Up
+            {loading ? "Signing Up..." : "Sign Up"}
           </button>
+
           <p className="text-center text-sm mt-4">
-            Login as User{" "}
+            Already have an account?{" "}
             <a href="/user-login" className="text-[#7472E0] hover:underline">
-              User Login
+              Login
             </a>
           </p>
           <p className="text-center text-sm mt-1">
-             Create account as Owner{" "}
+            Create account as Owner{" "}
             <a href="/owner-register" className="text-[#7472E0] hover:underline">
-              CreateOwner
+              Create Owner
             </a>
           </p>
         </form>
-        
       </div>
+
+      <ToastContainer position="top-center" autoClose={2000} /> {/* ✅ Toast container */}
     </div>
   );
 };

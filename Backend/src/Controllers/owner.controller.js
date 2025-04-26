@@ -22,6 +22,9 @@ const generateAccessAndRefreshTokens = async(ownerId) => {
 const registerOwner = asyncHandler(async (req, res) => {
     const { fullName, email, username, password, phoneNo } = req.body;
 
+    console.log(req.body);
+    
+
     if (
         [fullName, email, username, password, phoneNo].some(
             (field) => !field || field.trim() === ""

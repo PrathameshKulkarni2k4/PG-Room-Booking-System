@@ -7,19 +7,18 @@ import { upload } from "../middlewares/multer.middleware.js";
 import {
   registerRoom,
   getNearbyAvailableRooms,
-  updateRoomStatus,
   getRoomProfile,
   addRoomFeedback,
-  updateRoomPrice,
   deleteRoom,
-  getAvailableRooms
+  getAvailableRooms,
+  updateRoom,
+  updateRoomDetails
 } from "../controllers/room.controller.js";
 
 
 // (owner only)
 router.route("/register").post(verifyJWT, upload.array("images", 5), registerRoom); // register room
-router.route("/:roomId/status").patch(upload.none(),verifyJWT, updateRoomStatus); // update Room Status
-router.route("/:roomId/price").patch(upload.none() ,verifyJWT, updateRoomPrice) // update room price
+router.route("/:roomId").patch(verifyJWT, updateRoomDetails) // update status, price and facilities
 router.route("/:roomId").delete(verifyJWT, deleteRoom) // delete room
 
 // (user only)

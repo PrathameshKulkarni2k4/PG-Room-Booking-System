@@ -20,7 +20,7 @@ app.use(cookieParser())
 
 //routes import
 import userRouter from './routes/user.route.js'
-import roomRouter from './Routes/room.route.js'
+import roomRouter from './routes/room.route.js'
 import ownerRoter from './routes/owner.route.js'
 
 //routers declaration
