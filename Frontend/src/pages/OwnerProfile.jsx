@@ -105,7 +105,7 @@ const OwnerProfile = () => {
         <div
           key={room._id}
           onClick={() => window.location.href = `/rooms/${room._id}`}
-          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition relative cursor-pointer"
+          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition relative cursor-pointer mb-6"
         >
           <h4 className="text-xl font-semibold text-[#7472E0] mb-2">{room.name}</h4>
           <p className="text-sm text-gray-600 mb-1">

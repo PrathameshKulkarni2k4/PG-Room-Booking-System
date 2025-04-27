@@ -22,8 +22,6 @@ const generateAccessAndRefreshTokens = async(userId) => {
     }
 }
 
-
-
 const registerUser = asyncHandler( async (req, res) => {
     // get user details form frontend
     // validation - not empty
@@ -131,7 +129,6 @@ const loginUser = asyncHandler(async (req,res) => {
 
 })
 
-
 const logoutUser = asyncHandler(async (req,res) => {
     await User.findByIdAndUpdate(
         req.user._id,
@@ -196,50 +193,80 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
 })
 
 const updateUserDetails = asyncHandler(async (req, res) => {
-    const { fullName, email, phoneNo } = req.body;
+    const { username, fullName, phoneNo } = req.body;
   
-    if (!fullName && !email && !phoneNo) {
-      throw new ApiError(400, "Full name, email, and phone number are required");
+    // Check if at least one field is provided
+    if (!username && !fullName && !phoneNo) {
+      throw new ApiError(400, "At least one field (username, fullName, or phoneNo) must be provided");
     }
   
-    const emailExists = await User.findOne({
-      email,
-      _id: { $ne: req.user._id }
-    });
+    // Initialize update object
+    const updateData = {};
   
-    if (emailExists) {
-      throw new ApiError(409, "Email is already in use by another account");
+    // Validate and add username to update if provided
+    if (username) {
+      if (username.length < 3) {
+        throw new ApiError(400, "Username must be at least 3 characters long");
+      }
+      updateData.username = username.toLowerCase();
     }
   
-    // Check if phone number is already used by another user
-    const phoneExists = await User.findOne({
-      phoneNo,
-      _id: { $ne: req.user._id }
-    });
-  
-    if (phoneExists) {
-      throw new ApiError(409, "Phone number is already in use by another account");
+    // Validate and add fullName to update if provided
+    if (fullName) {
+      if (fullName.trim().length < 2) {
+        throw new ApiError(400, "Full name must be at least 2 characters long");
+      }
+      updateData.fullName = fullName.trim();
     }
   
-    const user = await User.findByIdAndUpdate(
+    // Validate and add phoneNo to update if provided
+    if (phoneNo) {
+      if (!/^\d{10,15}$/.test(phoneNo)) {
+        throw new ApiError(400, "Phone number must be 10-15 digits");
+      }
+      updateData.phoneNo = phoneNo;
+    }
+  
+    // Check for username uniqueness if username is being updated
+    if (username) {
+      const existingUser = await User.findOne({
+        username: username.toLowerCase(),
+        _id: { $ne: req.user._id }
+      });
+      if (existingUser) {
+        throw new ApiError(409, "Username already taken");
+      }
+    }
+  
+    // Check for phone number uniqueness if phoneNo is being updated
+    if (phoneNo) {
+      const existingPhone = await User.findOne({
+        phoneNo,
+        _id: { $ne: req.user._id }
+      });
+      if (existingPhone) {
+        throw new ApiError(409, "Phone number already in use");
+      }
+    }
+  
+    // Perform the update
+    const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
-      { fullName, email, phoneNo },
+      updateData,
       {
         new: true,
-        runValidators: true,
-        context: "query"
+        runValidators: true
       }
     ).select("-password -refreshToken");
   
-    if (!user) {
+    if (!updatedUser) {
       throw new ApiError(404, "User not found");
     }
   
     return res
       .status(200)
-      .json(new ApiResponse(200, user, "Account details updated successfully"));
+      .json(new ApiResponse(200, updatedUser, "User details updated successfully"));
   });
-  
 
 export {
     registerUser,

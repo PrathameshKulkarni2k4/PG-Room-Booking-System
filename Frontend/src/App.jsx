@@ -3,12 +3,10 @@ import { Route, Routes } from "react-router-dom";
 import Home from './pages/Home';
 import Login from './pages/Login';
 import OwnerLogin from './pages/OwnerLogin';
-import OwnerSignup from './pages/ownerSignup';
 
 import AvailableRooms from './pages/AvailableRooms';
 import RoomDetails from './pages/RoomDetails';
 import UserProfile from './pages/UserProfile';
-import OwnerProfile from './pages/OwnerProfile';
 import AddRoom from './pages/AddRoom';
 import EditRoom from './pages/EditRoom';
 import Navbar from './components/NavBar';
@@ -19,6 +17,8 @@ import ContactUs from './components/ContactUs';
 
 import PrivateRoute from './pages/PrivateRoute';
 import Signup from './pages/Signup';
+import OwnerProfile from './pages/OwnerProfile';
+import OwnerSignup from './pages/ownerSignup';
 
 const App = () => {
   return (
@@ -32,7 +32,6 @@ const App = () => {
         <Route path="/owner-register" element={<OwnerSignup/>} />
 
         {/* Public Routes */}
-        <Route path="/home" element={<Home />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
 
@@ -44,8 +43,9 @@ const App = () => {
         } />
         
         <Route path="/rooms/:id" element={<RoomDetails />} />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/owner" element={<OwnerProfile />} />
+        <Route path="/user-profile" element={<UserProfile />} />
+        <Route path="/owner-profile" element={<OwnerProfile />} />
+
         <Route path="/add-room" element={<AddRoom />} />
         <Route path="/edit-room/:roomId" element={<EditRoom/>}/>
 {/* //change for sending on github -- adding to main branch*/}

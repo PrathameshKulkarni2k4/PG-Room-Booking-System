@@ -1,120 +1,281 @@
-import React, { useState } from "react";
-import {
-  FaPhoneAlt,
-  FaEnvelope,
-  FaUser,
-  FaBookmark,
-  FaEdit,
-  FaCheck,
-  FaTimes,
-} from "react-icons/fa";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 
 const UserProfile = () => {
-  const [editMode, setEditMode] = useState(false);
+  const navigate = useNavigate();
 
   const [userData, setUserData] = useState({
-    name: "Akash Sharma",
-    email: "akash@example.com",
-    phone: "+91 9876543210",
+    fullName: "",
+    email: "",
+    phoneNo: ""
   });
 
-  const [tempData, setTempData] = useState({ ...userData });
+  const [editMode, setEditMode] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: "",
+    newPassword: ""
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const handleEditToggle = () => setEditMode(true);
-  const handleCancel = () => {
-    setTempData({ ...userData });
-    setEditMode(false);
-  };
-  const handleSave = () => {
-    setUserData({ ...tempData });
-    setEditMode(false);
+  const [allocatedRooms, setAllocatedRooms] = useState([]);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const res = await axios.get("/api/v1/users/profile", {
+          withCredentials: true
+        });
+        setUserData(res.data.data);
+        // setAllocatedRooms(res.data.data.rooms || []);
+      } catch (err) {
+        console.error(err);
+        navigate("/login");
+      }
+    };
+    fetchUserProfile();
+  }, []);
+
+  const handleInputChange = (e) => {
+    setUserData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleChange = (field, value) => {
-    setTempData((prev) => ({ ...prev, [field]: value }));
+  const handlePasswordChange = (e) => {
+    setPasswordData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.patch("/api/v1/users/profile", userData, {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" }
+      });
+      setMessage(res.data.message);
+      setError("");
+      setEditMode(false);
+    } catch (err) {
+      setMessage("");
+      setError(err.response?.data?.message || "Update failed");
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.patch("/api/v1/users/profile/password", passwordData, {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" }
+      });
+      setMessage(res.data.message);
+      setError("");
+      setPasswordData({ oldPassword: "", newPassword: "" });
+      setShowPasswordForm(false);
+    } catch (err) {
+      setMessage("");
+      setError(err.response?.data?.message || "Password change failed");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
   };
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-gray-100 to-white py-16 px-6 sm:px-12">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-12">
-        <h2 className="text-5xl font-extrabold text-[#7472E0] mb-2 leading-tight">
-          My Profile
-        </h2>
-        <p className="text-lg text-gray-600">
-          Manage your profile information and preferences
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-100 py-10 px-4">
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header with messages */}
+        {(message || error) && (
+          <div className={`p-4 rounded-lg ${message ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {message || error}
+          </div>
+        )}
+        
+        {/* Profile Section - Top Div */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h2 className="text-3xl font-bold text-[#7472E0] mb-6">Your Profile</h2>
 
-      {/* Profile Card */}
-      <div className="max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden grid lg:grid-cols-2 gap-16 p-12 transition-all duration-300">
-        {/* Left Side - Editable Info */}
-        <div className="space-y-10">
-          {/* Header with action */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-semibold text-gray-800 flex items-center gap-3">
-              <FaUser className="text-[#7472E0]" />
-              {editMode ? "Edit Profile" : userData.name}
-            </h3>
-            {!editMode ? (
-              <button
-                className="text-base flex items-center gap-2 px-5 py-2.5 bg-[#7472E0] text-white rounded-lg hover:bg-[#5d5bd1] transition"
-                onClick={handleEditToggle}
-              >
-                <FaEdit /> Edit
-              </button>
-            ) : (
-              <div className="flex gap-3">
+          <form onSubmit={handleUpdateProfile} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold">Full Name</label>
+              <input
+                type="text"
+                name="fullName"
+                value={userData.fullName}
+                onChange={handleInputChange}
+                disabled={!editMode}
+                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={userData.email}
+                onChange={handleInputChange}
+                disabled={!editMode}
+                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold">Phone Number</label>
+              <input
+                type="tel"
+                name="phoneNo"
+                value={userData.phoneNo}
+                onChange={handleInputChange}
+                disabled={!editMode}
+                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
+              />
+            </div>
+
+            {editMode ? (
+              <div className="flex gap-4">
                 <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-base rounded-lg hover:bg-green-700 transition"
+                  type="submit"
+                  className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
                 >
-                  <FaCheck /> Save
+                  Save Changes
                 </button>
                 <button
-                  onClick={handleCancel}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500 text-white text-base rounded-lg hover:bg-red-600 transition"
+                  type="button"
+                  onClick={() => setEditMode(false)}
+                  className="bg-gray-400 text-white px-6 py-3 rounded-lg hover:bg-gray-500 font-medium transition-all"
                 >
-                  <FaTimes /> Cancel
+                  Cancel
                 </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditMode(true)}
+                className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
+              >
+                Edit Profile
+              </button>
+            )}
+          </form>
+
+          {/* Styled Password Section */}
+          <div className="mt-10 pt-6 border-t border-gray-200">
+            <button
+              onClick={() => setShowPasswordForm((prev) => !prev)}
+              className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-[#7472E0] bg-opacity-10 text-[#7472E0] rounded-lg hover:bg-opacity-20 font-medium transition-all"
+            >
+              {showPasswordForm ? "Hide Password Form" : "Change Password"}
+            </button>
+
+            {showPasswordForm && (
+              <form onSubmit={handleChangePassword} className="mt-6 space-y-4 bg-gray-50 rounded-xl p-6">
+                <div className="relative">
+                  <label className="block text-sm font-medium">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showOldPassword ? "text" : "password"}
+                      name="oldPassword"
+                      value={passwordData.oldPassword}
+                      onChange={handlePasswordChange}
+                      className="mt-1 w-full border rounded-lg p-3 pr-10 focus:ring-[#7472E0] focus:border-[#7472E0]"
+                    />
+                    {passwordData.oldPassword && (
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      >
+                        {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <label className="block text-sm font-medium">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className="mt-1 w-full border rounded-lg p-3 pr-10 focus:ring-[#7472E0] focus:border-[#7472E0]"
+                    />
+                    {passwordData.newPassword && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      >
+                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
+                >
+                  Update Password
+                </button>
+              </form>
             )}
           </div>
 
-          {/* Profile Fields */}
-          {[["name", FaUser, "Full Name"], ["email", FaEnvelope, "Email Address"], ["phone", FaPhoneAlt, "Phone Number"]].map(
-            ([field, Icon, label]) => (
-              <div key={field} className="flex items-start gap-4">
-                <Icon className="mt-1 text-2xl text-[#7472E0]" />
-                <div className="w-full">
-                  <p className="text-[15px] text-gray-500 mb-1">{label}</p>
-                  {editMode ? (
-                    <input
-                      type={field === "email" ? "email" : "text"}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-[#7472E0] focus:border-[#7472E0] text-lg"
-                      value={tempData[field]}
-                      onChange={(e) => handleChange(field, e.target.value)}
-                    />
-                  ) : (
-                    <p className="text-xl font-medium">{userData[field]}</p>
-                  )}
-                </div>
-              </div>
-            )
-          )}
+          <div className="mt-10 pt-6 border-t border-gray-200">
+            <button
+              onClick={handleLogout}
+              className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-all"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
-        {/* Right Side - Saved Rooms */}
-        <div className="bg-gray-50 rounded-2xl p-8 shadow-inner">
-          <div className="flex items-center gap-4 mb-5">
-            <FaBookmark className="text-2xl text-[#7472E0]" />
-            <h3 className="text-2xl font-semibold text-gray-800">Saved Rooms</h3>
-          </div>
-          <ul className="space-y-4 text-gray-700 list-disc pl-6 text-lg leading-relaxed">
-            <li>2BHK Flat near Hinjewadi, Pune</li>
-            <li>Studio Apartment, Bandra, Mumbai</li>
-            <li>1BHK PG, Koramangala, Bangalore</li>
-          </ul>
+        {/* Allocated Rooms Section - Bottom Div */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h2 className="text-3xl font-bold text-[#7472E0] mb-6">Allocated Rooms</h2>
+
+          {allocatedRooms.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allocatedRooms.map((room, idx) => (
+                <div key={idx} className="border p-4 rounded-lg shadow-sm hover:shadow-md transition-all">
+                  <h4 className="font-semibold text-lg">{room.name || room.roomNumber || `Room ${idx+1}`}</h4>
+                  <p className="text-sm text-gray-600">{room.address || room.building || "Main Building"}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-sm text-gray-500">
+                      {room.type || "Standard Room"}
+                    </span>
+                    <button 
+                      onClick={() => navigate(`/rooms/${room._id || room.id}`)}
+                      className="text-[#7472E0] hover:underline text-sm font-medium"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-50 p-8 rounded-xl text-center border border-gray-200">
+              <h3 className="text-xl font-medium text-gray-700 mb-2">No Allocated Rooms</h3>
+              <p className="text-gray-500">You don't have any rooms allocated to you at the moment.</p>
+              <button 
+                onClick={() => navigate('/rooms')}
+                className="mt-4 px-6 py-3 bg-[#7472E0] text-white rounded-lg hover:opacity-90 font-medium transition-all"
+              >
+                Browse Available Rooms
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

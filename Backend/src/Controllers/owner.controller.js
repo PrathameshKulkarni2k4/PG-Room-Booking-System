@@ -137,9 +137,86 @@ const getOwnerProfile = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200,owner,"owner fetched successfully"))
 })
 
+const updateOwnerDetails = asyncHandler(async (req, res) => {
+    const { username, fullName, phoneNo } = req.body;
+  
+    // Check if at least one field is provided
+    if (!username && !fullName && !phoneNo) {
+      throw new ApiError(400, "At least one field (username, fullName, or phoneNo) must be provided");
+    }
+  
+    // Initialize update object
+    const updateData = {};
+  
+    // Validate and add username to update if provided
+    if (username) {
+      if (username.length < 3) {
+        throw new ApiError(400, "Username must be at least 3 characters long");
+      }
+      updateData.username = username.toLowerCase();
+    }
+  
+    // Validate and add fullName to update if provided
+    if (fullName) {
+      if (fullName.trim().length < 2) {
+        throw new ApiError(400, "Full name must be at least 2 characters long");
+      }
+      updateData.fullName = fullName.trim();
+    }
+  
+    // Validate and add phoneNo to update if provided
+    if (phoneNo) {
+      if (!/^\d{10,15}$/.test(phoneNo)) {
+        throw new ApiError(400, "Phone number must be 10-15 digits");
+      }
+      updateData.phoneNo = phoneNo;
+    }
+  
+    // Check for username uniqueness if username is being updated
+    if (username) {
+      const existingOwner = await Owner.findOne({
+        username: username.toLowerCase(),
+        _id: { $ne: req.user._id }
+      });
+      if (existingOwner) {
+        throw new ApiError(409, "Username already taken");
+      }
+    }
+  
+    // Check for phone number uniqueness if phoneNo is being updated
+    if (phoneNo) {
+      const existingPhone = await Owner.findOne({
+        phoneNo,
+        _id: { $ne: req.user._id }
+      });
+      if (existingPhone) {
+        throw new ApiError(409, "Phone number already in use");
+      }
+    }
+  
+    // Perform the update
+    const updatedOwner = await Owner.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).select("-password -refreshToken");
+  
+    if (!updatedOwner) {
+      throw new ApiError(404, "User not found");
+    }
+  
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedOwner, "User details updated successfully"));
+  });
+
 export {
     registerOwner,
     loginOwner,
     logoutOwner,
-    getOwnerProfile
+    getOwnerProfile,
+    updateOwnerDetails
 };
