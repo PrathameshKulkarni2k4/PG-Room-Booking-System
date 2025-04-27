@@ -34,13 +34,13 @@ const sendVerificationCode = asyncHandler(async (req, res) => {
   const code = generateVerificationCode();
   verificationCodes.set(email, {
     code,
-    expires: Date.now() + 15 * 60 * 1000, // 15 minutes expiration
+    expires: Date.now() + 10 * 60 * 1000, // 15 minutes expiration
     verified: false
   });
 
   // Prepare email
   const mailOptions = {
-    from: `Your App Name <${process.env.GMAIL_USER}>`,
+    from: `RoomBuddy <${process.env.GMAIL_USER}>`,
     to: email,
     subject: 'Verify Your Email Address',
     html: `
@@ -50,7 +50,7 @@ const sendVerificationCode = asyncHandler(async (req, res) => {
         <div style="background: #f4f4f4; padding: 10px; margin: 20px 0; font-size: 24px; font-weight: bold; text-align: center;">
           ${code}
         </div>
-        <p>This code will expire in 15 minutes.</p>
+        <p>This code will expire in 10 minutes.</p>
         <p>If you didn't request this, please ignore this email.</p>
       </div>
     `

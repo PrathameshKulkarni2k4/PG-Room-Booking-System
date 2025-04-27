@@ -23,12 +23,14 @@ import userRouter from './Routes/user.route.js'
 import roomRouter from './routes/room.route.js'
 import ownerRoter from './routes/owner.route.js'
 import verificationRouter from './routes/verification.route.js'
+import bookingRouter from './routes/booking.route.js'
 
 //routers declaration
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/rooms", roomRouter)
 app.use("/api/v1/owner", ownerRoter)
 app.use("/api/v1/verify", verificationRouter)
+app.use("/api/v1/booking", bookingRouter)
 
 // http://localhost:8000/api/v1/users/register
 // http://localhost:8000/api/v1/users/login

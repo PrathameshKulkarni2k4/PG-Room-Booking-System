@@ -18,7 +18,6 @@ const generateAccessAndRefreshTokens = async(ownerId) => {
     }
 };
 
-
 const registerOwner = asyncHandler(async (req, res) => {
     const { fullName, email, username, password, phoneNo } = req.body;
 
@@ -62,7 +61,6 @@ const registerOwner = asyncHandler(async (req, res) => {
     );
 });
 
-
 const loginOwner = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
 
@@ -105,7 +103,6 @@ const loginOwner = asyncHandler(async (req, res) => {
             }, "Owner logged in successfully")
         );
 });
-
 
 const logoutOwner = asyncHandler(async (req, res) => {
     await Owner.findByIdAndUpdate(
@@ -211,7 +208,7 @@ const updateOwnerDetails = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(new ApiResponse(200, updatedOwner, "User details updated successfully"));
-  });
+});
 
 export {
     registerOwner,
