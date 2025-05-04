@@ -46,6 +46,7 @@ const OwnerSignup = () => {
     setEmailStatus("");
 
     try {
+      console.log("Sending code to email:", { email });
       await axios.post("/api/v1/verify/send-code", { email });
       setStep(2);
       setTimer(60);
@@ -67,6 +68,7 @@ const OwnerSignup = () => {
     }
 
     try {
+      console.log("Verifying code:", { email, code });
       await axios.post("/api/v1/verify/verify-code", { email, code });
       setEmailVerified(true);
       setStep(3);

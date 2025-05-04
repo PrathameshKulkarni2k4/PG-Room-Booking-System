@@ -1,45 +1,65 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Booking } from "../models/booking.model.js";
+import { Room } from '../models/room.model.js';
 import mongoose from "mongoose";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { sendNotification } from "../utils/notification.service.js";
 
 const createBooking = asyncHandler(async (req, res) => {
-    console.log(req.params,"  ",req.user);
-    
     const { roomId } = req.params;
-    const user = req.user._id;
+    const userId = req.user._id;
 
-    // Validate room ID
-    if (!mongoose.Types.ObjectId.isValid(roomId)) {
-        res.status(400);
-        throw new Error("Invalid room ID format");
-    }
-
-    // Check if booking already exists for this user and room
-    const existingBooking = await Booking.findOne({ 
-        user, 
-        room: roomId,
-        status: { $nin: ['cancel', 'rejected', 'completed'] } // Only count active bookings
-    });
-
-    if (existingBooking) {
-        res.status(409);
-        throw new Error("You already have an active booking for this room");
-    }
-
-    // Create new booking
+    // 1. Create booking
     const booking = await Booking.create({
-        user,
+        user: userId,
         room: roomId,
-        // Defaults from schema will be applied automatically
+        status: "pending",
     });
 
-    // Populate room details in the response
-    const populatedBooking = await Booking.findById(booking._id)
-        .populate('room', 'name price') // Only include specific room fields
-        .populate('user', 'fullName email'); // Only include specific user fields
+    // 2. Fetch room details (to get ownerId)
+    const room = await Room.findById(roomId).populate('owner');
 
-    res.status(200).json(new ApiResponse(200, populatedBooking, "booked registered successfully"));
+    // 3. Send notification to room owner
+    await sendNotification(req.app.get('io'), {
+        receiverId: room.owner._id,
+        receiverModel: "Owner",
+        message: `New booking request for ${room.name}`,
+        type: "booking",
+        bookingId: booking._id,
+        roomId: room._id
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, booking, "Room booked successfully")
+    );
 });
 
-export { createBooking };
+const updateBookingStatus = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const booking = await Booking.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+    ).populate('user', 'name email');
+
+    // 1. Send notification to the user
+    await sendNotification(req.app.get('io'), {
+        receiverId: booking.user._id,
+        receiverModel: "User",
+        message: `Your booking has been ${status}`,
+        type: "booking-status",
+        bookingId: booking._id,
+        roomId: booking.room
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, booking, "Booking status has changed")
+    )
+});
+
+export {
+    createBooking,
+    updateBookingStatus
+};

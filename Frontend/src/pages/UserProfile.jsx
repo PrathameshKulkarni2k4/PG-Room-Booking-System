@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { FaBell, FaUser, FaEnvelope, FaPhoneAlt, FaLock, FaSignOutAlt, FaHome } from "react-icons/fa";
+import { SocketContext } from "../context/SocketContext.jsx";
 
 const UserProfile = () => {
   const navigate = useNavigate();
+  const socket = useContext(SocketContext);
 
   const [userData, setUserData] = useState({
     fullName: "",
+    username: "",
     email: "",
     phoneNo: ""
   });
@@ -25,6 +29,10 @@ const UserProfile = () => {
 
   const [allocatedRooms, setAllocatedRooms] = useState([]);
 
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -32,14 +40,32 @@ const UserProfile = () => {
           withCredentials: true
         });
         setUserData(res.data.data);
-        // setAllocatedRooms(res.data.data.rooms || []);
+        setAllocatedRooms(res.data.data.rooms || []);
+        socket.emit("join-user-room", res.data.data._id);
       } catch (err) {
         console.error(err);
         navigate("/login");
       }
     };
+
     fetchUserProfile();
-  }, []);
+
+    socket.on("new-notification", (notification) => {
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    });
+
+    return () => {
+      socket.off("new-notification");
+    };
+  }, [navigate, socket]);
+
+  const toggleNotifications = () => {
+    if (showNotifications) {
+      setUnreadCount(0);
+    }
+    setShowNotifications(!showNotifications);
+  };
 
   const handleInputChange = (e) => {
     setUserData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -82,201 +108,227 @@ const UserProfile = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await axios.post("/api/v1/owner/logout", {}, { withCredentials: true });
+      localStorage.clear();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Failed to log out");
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header with messages */}
+      <div className="max-w-6xl mx-auto space-y-8 relative">
+
+        {/* Notification Bell */}
+        <div className="flex justify-end">
+          <div className="relative">
+            <button
+              onClick={toggleNotifications}
+              className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+            >
+              <FaBell className="text-2xl text-[#7472E0]" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-lg z-10 max-h-80 overflow-y-auto">
+                <div className="p-3 border-b font-medium text-gray-700">
+                  Notifications
+                </div>
+                {notifications.length > 0 ? (
+                  notifications.map((note, index) => (
+                    <div
+                      key={index}
+                      className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        if (note.bookingId) {
+                          navigate(`/bookings/${note.bookingId}`);
+                        }
+                      }}
+                    >
+                      <p className="text-sm">{note.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(note.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    No notifications yet
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="mb-8 flex justify-between items-center">
+          <h2 className="text-3xl font-semibold text-gray-800">Your Profile</h2>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2"
+          >
+            <FaSignOutAlt /> Log Out
+          </button>
+        </div>
+
+        {/* Alert Messages */}
         {(message || error) && (
-          <div className={`p-4 rounded-lg ${message ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          <div className={`mb-6 p-3 rounded-md ${message ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {message || error}
           </div>
         )}
-        
-        {/* Profile Section - Top Div */}
+
+        {/* Profile Information */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-[#7472E0] mb-6">Your Profile</h2>
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">Personal Information</h3>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">Full Name</label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={userData.fullName}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-2 border-[#7472E0] shadow-sm focus:border-[#7472E0] focus:ring-[#7472E0] sm:text-sm p-2 bg-gray-50"
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-gray-900">{userData.fullName}</p>
+                )}
+              </div>
 
-          <form onSubmit={handleUpdateProfile} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold">Full Name</label>
-              <input
-                type="text"
-                name="fullName"
-                value={userData.fullName}
-                onChange={handleInputChange}
-                disabled={!editMode}
-                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
-              />
+              {/* Username */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">Username</label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="username"
+                    value={userData.username}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-2 border-[#7472E0] shadow-sm focus:border-[#7472E0] focus:ring-[#7472E0] sm:text-sm p-2 bg-gray-50"
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-gray-900">{userData.username}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">Email Address</label>
+                <p className="mt-1 text-sm text-gray-900">{userData.email}</p>
+              </div>
+
+              {/* Phone No */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">Phone Number</label>
+                {editMode ? (
+                  <input
+                    type="tel"
+                    name="phoneNo"
+                    value={userData.phoneNo}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-2 border-[#7472E0] shadow-sm focus:border-[#7472E0] focus:ring-[#7472E0] sm:text-sm p-2 bg-gray-50"
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-gray-900">{userData.phoneNo}</p>
+                )}
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold">Email</label>
-              <input
-                type="email"
-                name="email"
-                value={userData.email}
-                onChange={handleInputChange}
-                disabled={!editMode}
-                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Phone Number</label>
-              <input
-                type="tel"
-                name="phoneNo"
-                value={userData.phoneNo}
-                onChange={handleInputChange}
-                disabled={!editMode}
-                className="mt-1 w-full border rounded-lg p-3 focus:ring-[#7472E0] focus:border-[#7472E0]"
-              />
-            </div>
-
-            {editMode ? (
-              <div className="flex gap-4">
+            {/* Buttons */}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                {editMode ? "Cancel" : "Edit Profile"}
+              </button>
+              {editMode && (
                 <button
-                  type="submit"
-                  className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
+                  onClick={handleUpdateProfile}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
                 >
                   Save Changes
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setEditMode(false)}
-                  className="bg-gray-400 text-white px-6 py-3 rounded-lg hover:bg-gray-500 font-medium transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
+              )}
               <button
-                type="button"
-                onClick={() => setEditMode(true)}
-                className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
+                onClick={() => setShowPasswordForm(!showPasswordForm)}
+                className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
               >
-                Edit Profile
-              </button>
-            )}
-          </form>
-
-          {/* Styled Password Section */}
-          <div className="mt-10 pt-6 border-t border-gray-200">
-            <button
-              onClick={() => setShowPasswordForm((prev) => !prev)}
-              className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-[#7472E0] bg-opacity-10 text-[#7472E0] rounded-lg hover:bg-opacity-20 font-medium transition-all"
-            >
-              {showPasswordForm ? "Hide Password Form" : "Change Password"}
-            </button>
-
-            {showPasswordForm && (
-              <form onSubmit={handleChangePassword} className="mt-6 space-y-4 bg-gray-50 rounded-xl p-6">
-                <div className="relative">
-                  <label className="block text-sm font-medium">Current Password</label>
-                  <div className="relative">
-                    <input
-                      type={showOldPassword ? "text" : "password"}
-                      name="oldPassword"
-                      value={passwordData.oldPassword}
-                      onChange={handlePasswordChange}
-                      className="mt-1 w-full border rounded-lg p-3 pr-10 focus:ring-[#7472E0] focus:border-[#7472E0]"
-                    />
-                    {passwordData.oldPassword && (
-                      <button
-                        type="button"
-                        onClick={() => setShowOldPassword(!showOldPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                      >
-                        {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <label className="block text-sm font-medium">New Password</label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      name="newPassword"
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className="mt-1 w-full border rounded-lg p-3 pr-10 focus:ring-[#7472E0] focus:border-[#7472E0]"
-                    />
-                    {passwordData.newPassword && (
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                      >
-                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="bg-[#7472E0] text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-all"
-                >
-                  Update Password
-                </button>
-              </form>
-            )}
-          </div>
-
-          <div className="mt-10 pt-6 border-t border-gray-200">
-            <button
-              onClick={handleLogout}
-              className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-all"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Allocated Rooms Section - Bottom Div */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-[#7472E0] mb-6">Allocated Rooms</h2>
-
-          {allocatedRooms.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {allocatedRooms.map((room, idx) => (
-                <div key={idx} className="border p-4 rounded-lg shadow-sm hover:shadow-md transition-all">
-                  <h4 className="font-semibold text-lg">{room.name || room.roomNumber || `Room ${idx+1}`}</h4>
-                  <p className="text-sm text-gray-600">{room.address || room.building || "Main Building"}</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-sm text-gray-500">
-                      {room.type || "Standard Room"}
-                    </span>
-                    <button 
-                      onClick={() => navigate(`/rooms/${room._id || room.id}`)}
-                      className="text-[#7472E0] hover:underline text-sm font-medium"
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-gray-50 p-8 rounded-xl text-center border border-gray-200">
-              <h3 className="text-xl font-medium text-gray-700 mb-2">No Allocated Rooms</h3>
-              <p className="text-gray-500">You don't have any rooms allocated to you at the moment.</p>
-              <button 
-                onClick={() => navigate('/rooms')}
-                className="mt-4 px-6 py-3 bg-[#7472E0] text-white rounded-lg hover:opacity-90 font-medium transition-all"
-              >
-                Browse Available Rooms
+                {showPasswordForm ? "Cancel" : "Change Password"}
               </button>
             </div>
+          </div>
+
+          {/* Password Change Form */}
+          {showPasswordForm && (
+            <form onSubmit={handleChangePassword} className="space-y-4 mt-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-600">Old Password</label>
+                <div className="relative">
+                  <input
+                    type={showOldPassword ? "text" : "password"}
+                    name="oldPassword"
+                    value={passwordData.oldPassword}
+                    onChange={handlePasswordChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
+                  />
+                  <div className="absolute inset-y-0 right-3 flex items-center cursor-pointer" onClick={() => setShowOldPassword(!showOldPassword)}>
+                    {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm p-2"
+                  />
+                  <div className="absolute inset-y-0 right-3 flex items-center cursor-pointer" onClick={() => setShowNewPassword(!showNewPassword)}>
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2 px-4 bg-[#7472E0] text-white rounded-md hover:bg-[#5a58d6]">
+                Update Password
+              </button>
+            </form>
           )}
         </div>
+
+        {/* Allocated Rooms */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">Allocated Rooms</h3>
+          {allocatedRooms.length > 0 ? (
+            <ul className="list-disc ml-5 space-y-2">
+              {allocatedRooms.map((room, index) => (
+                <li key={index} className="text-gray-800">{room.name}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-600">No rooms allocated yet.</p>
+          )}
+        </div>
+
       </div>
     </div>
   );
