@@ -9,15 +9,18 @@ import {
   FaUser,
   FaTrash,
 } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext"; // Import useSocket
 
 const OwnerProfile = () => {
   const socket = useSocket(); // Use socket from context
+  const navigate = useNavigate(); // For programmatic navigation
   const [ownerData, setOwnerData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
 
   const fetchOwnerProfile = async () => {
     try {
@@ -112,35 +115,52 @@ const OwnerProfile = () => {
             <div className="p-4 font-semibold border-b text-gray-700 flex justify-between items-center">
               <span>Notifications</span>
               <button
-                className="text-xs text-[#7472E0] hover:underline"
-                onClick={() => {
-                  setNotifications([]);
-                  setUnreadCount(0);
-                  setShowNotifications(false);
+                className={`text-xs text-[#7472E0] hover:underline ${isClearing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isClearing}
+                onClick={async () => {
+                  setIsClearing(true);
+                  try {
+                    await axios.delete("/api/v1/owner/notifications/clear", {
+                      withCredentials: true,
+                    });
+
+                    setNotifications([]);
+                    setUnreadCount(0);
+                    setShowNotifications(false);
+                  } catch (error) {
+                    console.error("Failed to clear notifications:", error);
+                  } finally {
+                    setIsClearing(false);
+                  }
                 }}
               >
-                Clear all
+                {isClearing ? "Clearing..." : "Clear all"}
               </button>
             </div>
 
             {notifications.length > 0 ? (
-              notifications.map((note, index) => (
-                <div
+              notifications.map((note, index) => {
+                console.log("Notification:", note);
+                return <div
                   key={index}
                   className="p-4 hover:bg-gray-50 cursor-pointer border-b"
-                  onClick={() => {
-                    if (note.bookingId) {
-                      window.location.href = `/bookings/${note.bookingId}`;
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('notification:', note)
+                    if (note._id) {
+                      navigate(`/notifications/${note._id}`);
                     }
                     setShowNotifications(false);
                   }}
                 >
                   <p className="text-sm">{note.message}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {new Date(note.timestamp).toLocaleString()}
+                    {note.timestamp}
+                    {new Date(note.createdAt).toLocaleString()}
                   </p>
                 </div>
-              ))
+              })
             ) : (
               <div className="p-6 text-center text-gray-400">No notifications yet</div>
             )}
@@ -191,7 +211,7 @@ const OwnerProfile = () => {
         ownerData.rooms.map((room) => (
           <div
             key={room._id}
-            onClick={() => window.location.href = `/rooms/${room._id}`}
+            onClick={() => navigate(`/rooms/${room._id}`)}
             className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition relative cursor-pointer mb-6"
           >
             <h4 className="text-xl font-semibold text-[#7472E0] mb-2">{room.name}</h4>

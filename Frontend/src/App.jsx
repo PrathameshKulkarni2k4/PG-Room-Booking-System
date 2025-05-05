@@ -17,6 +17,7 @@ import PrivateRoute from './pages/PrivateRoute';
 import Signup from './pages/Signup';
 import OwnerProfile from './pages/OwnerProfile';
 import OwnerSignup from './pages/OwnerSignup';
+import Notification from './pages/Notification';
 
 // Import your SocketProvider
 import { SocketProvider } from './context'
@@ -51,6 +52,7 @@ const App = () => {
           <Route path="/owner-profile" element={<OwnerProfile />} />
           <Route path="/add-room" element={<AddRoom />} />
           <Route path="/edit-room/:roomId" element={<EditRoom />} />
+          <Route path="/notifications/:notificationId" element={<Notification />} />
         </Routes>
         <Footer />
       </div>
