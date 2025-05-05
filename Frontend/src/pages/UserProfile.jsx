@@ -3,11 +3,11 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { FaBell, FaUser, FaEnvelope, FaPhoneAlt, FaLock, FaSignOutAlt, FaHome } from "react-icons/fa";
-import { SocketContext } from "../context/SocketContext.jsx";
+import { useSocket } from "../context/SocketContext.jsx";
 
 const UserProfile = () => {
+  const socket = useSocket();
   const navigate = useNavigate();
-  const socket = useContext(SocketContext);
 
   const [userData, setUserData] = useState({
     fullName: "",
@@ -32,40 +32,47 @@ const UserProfile = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+
+  const fetchUserProfile = async () => {
+    try {
+      const res = await axios.get("/api/v1/users/profile", {
+        withCredentials: true
+      });
+      console.log(res);
+
+      if (res.data.success) {
+        const { user, notifications } = res.data.data;
+        setUserData(user);
+        setNotifications(notifications);
+        setUnreadCount(notifications.length);
+        setAllocatedRooms(res.data.data.rooms || []);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      // navigate("/user-login");
+    }
+  };
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const res = await axios.get("/api/v1/users/profile", {
-          withCredentials: true
-        });
-        setUserData(res.data.data);
-        setAllocatedRooms(res.data.data.rooms || []);
-        socket.emit("join-user-room", res.data.data._id);
-      } catch (err) {
-        console.error(err);
-        navigate("/login");
-      }
-    };
-
     fetchUserProfile();
 
-    socket.on("new-notification", (notification) => {
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
-    });
+    if (!socket) return; // If socket not ready, return early
+
+    const handleNewNotification = (notification) => {
+      console.log('📩 New notification received:', notification);
+
+      setNotifications((prev) => [notification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on("new-notification", handleNewNotification);
 
     return () => {
-      socket.off("new-notification");
+      socket.off("new-notification", handleNewNotification);
     };
-  }, [navigate, socket]);
-
-  const toggleNotifications = () => {
-    if (showNotifications) {
-      setUnreadCount(0);
-    }
-    setShowNotifications(!showNotifications);
-  };
+  }, [socket]);
 
   const handleInputChange = (e) => {
     setUserData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -110,7 +117,7 @@ const UserProfile = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post("/api/v1/owner/logout", {}, { withCredentials: true });
+      await axios.post("/api/v1/users/logout", {}, { withCredentials: true });
       localStorage.clear();
       window.location.href = "/";
     } catch (error) {
@@ -123,63 +130,89 @@ const UserProfile = () => {
     <div className="min-h-screen bg-gray-100 py-10 px-4">
       <div className="max-w-6xl mx-auto space-y-8 relative">
 
-        {/* Notification Bell */}
-        <div className="flex justify-end">
-          <div className="relative">
-            <button
-              onClick={toggleNotifications}
-              className="p-2 rounded-full hover:bg-gray-200 transition-colors"
-            >
-              <FaBell className="text-2xl text-[#7472E0]" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-lg z-10 max-h-80 overflow-y-auto">
-                <div className="p-3 border-b font-medium text-gray-700">
-                  Notifications
-                </div>
-                {notifications.length > 0 ? (
-                  notifications.map((note, index) => (
-                    <div
-                      key={index}
-                      className="p-3 border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => {
-                        if (note.bookingId) {
-                          navigate(`/bookings/${note.bookingId}`);
-                        }
-                      }}
-                    >
-                      <p className="text-sm">{note.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(note.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-gray-500">
-                    No notifications yet
-                  </div>
-                )}
-              </div>
+        {/* Notifications */}
+        <div className="absolute right-10 top-5  gap-3">
+          <button
+            onClick={() => {
+              setShowNotifications((prev) => !prev);
+            }}
+            className="relative p-2 bg-[#7472E0] text-white rounded-full"
+          >
+            <span className="text-xl">🔔</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                {unreadCount}
+              </span>
             )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute right-0 mt-3 w-80 bg-white shadow-xl rounded-lg z-20 max-h-96 overflow-y-auto">
+              <div className="p-4 font-semibold border-b text-gray-700 flex justify-between items-center">
+                <span>Notifications</span>
+                <button
+                  className={`text-xs text-[#7472E0] hover:underline ${isClearing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isClearing}
+                  onClick={async () => {
+                    setIsClearing(true);
+                    try {
+                      await axios.delete("/api/v1/users/notifications/clear", {
+                        withCredentials: true,
+                      });
+                      setNotifications([]);
+                      setUnreadCount(0);
+                      setShowNotifications(false);
+                    } catch (error) {
+                      console.error("Failed to clear notifications:", error);
+                    } finally {
+                      setIsClearing(false);
+                    }
+                  }}
+                >
+                  {isClearing ? "Clearing..." : "Clear all"}
+                </button>
+              </div>
+
+              {notifications.length > 0 ? (
+                notifications.map((note, index) => (
+                  <div
+                    key={index}
+                    className="p-4 hover:bg-gray-50 cursor-pointer border-b"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (note._id) {
+                        navigate(`/notifications/${note._id}`);
+                      }
+                      setShowNotifications(false);
+                    }}
+                  >
+                    <p className="text-sm">{note.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(note.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-400">No notifications yet</div>
+              )}
+            </div>
+          )}
+
+          <div className="mb-8 flex justify-between items-center">
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2"
+            >
+              <FaSignOutAlt /> Log Out
+            </button>
           </div>
+ 
         </div>
 
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <h2 className="text-3xl font-semibold text-gray-800">Your Profile</h2>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2"
-          >
-            <FaSignOutAlt /> Log Out
-          </button>
-        </div>
+
+
 
         {/* Alert Messages */}
         {(message || error) && (

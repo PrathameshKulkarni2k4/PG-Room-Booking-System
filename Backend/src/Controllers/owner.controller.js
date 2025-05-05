@@ -133,12 +133,12 @@ const getOwnerProfile = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Owner not found")
   }
 
-  const notifications = await Notification.find({ receiver: ownerId }).sort({ createdAt: -1 });
+  const notifications = await Notification.find({ receiver: ownerId, read: false }).sort({ createdAt: -1 });
 
   return res.status(200).json(
     new ApiResponse(200, { owner, notifications }, "owner fetched successfully")
   )
-})
+});
 
 const updateOwnerDetails = asyncHandler(async (req, res) => {
   const { username, fullName, phoneNo } = req.body;

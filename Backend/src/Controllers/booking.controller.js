@@ -4,6 +4,7 @@ import { Room } from '../models/room.model.js';
 import mongoose from "mongoose";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { sendNotification } from "../utils/notification.service.js";
+import { Notification } from "../models/notification.model.js";
 
 const createBooking = asyncHandler(async (req, res) => {
     const { roomId } = req.params;
@@ -35,14 +36,16 @@ const createBooking = asyncHandler(async (req, res) => {
 });
 
 const updateBookingStatus = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
+    const { bookingId } = req.params;
+    const { status, notificationId } = req.body;
 
     const booking = await Booking.findByIdAndUpdate(
-        id,
+        bookingId,
         { status },
         { new: true }
     ).populate('user', 'name email');
+
+    await Notification.findByIdAndUpdate(notificationId, { read: true });
 
     // 1. Send notification to the user
     await sendNotification(req.app.get('io'), {

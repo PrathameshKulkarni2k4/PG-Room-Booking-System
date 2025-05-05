@@ -6,6 +6,6 @@ import { createBooking, updateBookingStatus } from "../controllers/booking.contr
 const router = Router()
 
 router.route("/create-booking/:roomId").post(upload.none(), verifyJWT, createBooking) // create a booking
-router.patch("/:id", verifyJWT, updateBookingStatus);
+router.patch("/:bookingId", verifyJWT, updateBookingStatus);
 
 export default router

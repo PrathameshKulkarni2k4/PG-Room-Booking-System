@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify"
 import axios from "axios";
 
 const Notification = () => {
@@ -54,6 +55,56 @@ const Notification = () => {
         <strong>Created:</strong>{" "}
         {new Date(notification.createdAt).toLocaleString()}
       </div>
+
+      {notification.type === "booking" && notification.booking && (
+        <div className="mt-4 flex gap-4">
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            onClick={async () => {
+              try {
+                await axios.patch(
+                  `/api/v1/booking/${notification.booking._id}`,
+                  {
+                    status: "approved",
+                    notificationId: notification._id,
+                  },
+                  { withCredentials: true }
+                );
+                toast.success("Booking approved and user notified.");
+                navigate(-1);
+              } catch (err) {
+                toast.error("Failed to approve booking.");
+                console.error(err);
+              }
+            }}
+          >
+            ✅ Approve
+          </button>
+
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            onClick={async () => {
+              try {
+                await axios.patch(
+                  `/api/v1/booking/${notification.booking._id}`,
+                  {
+                    status: "rejected",
+                    notificationId: notification._id,
+                  },
+                  { withCredentials: true }
+                );
+                toast.success("Booking rejected and user notified.");
+                navigate(-1);
+              } catch (err) {
+                toast.error("Failed to reject booking.");
+                console.error(err);
+              }
+            }}
+          >
+            ❌ Reject
+          </button>
+        </div>
+      )}
 
       <button
         onClick={() => navigate(-1)}

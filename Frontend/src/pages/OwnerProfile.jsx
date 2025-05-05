@@ -8,6 +8,7 @@ import {
   FaPhoneAlt,
   FaUser,
   FaTrash,
+  FaSignOutAlt
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext"; // Import useSocket
@@ -82,6 +83,17 @@ const OwnerProfile = () => {
     return <div className="text-center py-10">Loading profile...</div>;
   }
 
+  const handleLogout = async () => {
+    try {
+      await axios.post("/api/v1/owner/logout", {}, { withCredentials: true });
+      localStorage.clear();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Failed to log out");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 relative">
       {/* Header */}
@@ -95,9 +107,6 @@ const OwnerProfile = () => {
         <button
           onClick={() => {
             setShowNotifications((prev) => !prev);
-            if (!showNotifications) {
-              markAllNotificationsAsRead();
-            }
           }}
           className="relative p-2 bg-[#7472E0] text-white rounded-full"
         >
@@ -156,7 +165,6 @@ const OwnerProfile = () => {
                 >
                   <p className="text-sm">{note.message}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {note.timestamp}
                     {new Date(note.createdAt).toLocaleString()}
                   </p>
                 </div>
@@ -167,6 +175,16 @@ const OwnerProfile = () => {
           </div>
         )}
       </div>
+
+      <div className="mb-8 flex justify-between items-center">
+        <h2 className="text-3xl font-semibold text-gray-800">Your Profile</h2>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2"
+        >
+          <FaSignOutAlt /> Log Out
+        </button>
+      </div> 
 
       {/* Owner Info */}
       <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 grid sm:grid-cols-2 gap-6">
