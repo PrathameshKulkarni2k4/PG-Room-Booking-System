@@ -16,7 +16,7 @@ const ContactUs = () => {
   return (
     <section className="py-20 px-4 bg-white w-full">
       <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">Contact Us</h2>
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-10 w-full">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-10 w-full items-center justify-center">
         {/* Contact Info */}
         <div className="w-full md:w-1/2 bg-gray-50 p-8 rounded-xl shadow-lg space-y-6">
           <div className="flex items-start gap-4">
@@ -72,7 +72,7 @@ const ContactUs = () => {
         </div>
 
         {/* Contact Form */}
-        <div className="w-full md:w-1/2 bg-gray-50 p-8 rounded-xl shadow-lg">
+        {/* <div className="w-full md:w-1/2 bg-gray-50 p-8 rounded-xl shadow-lg">
           <form>
             <input
               type="text"
@@ -104,7 +104,7 @@ const ContactUs = () => {
               Send Message
             </button>
           </form>
-        </div>
+        </div> */}
       </div>
     </section>
   );

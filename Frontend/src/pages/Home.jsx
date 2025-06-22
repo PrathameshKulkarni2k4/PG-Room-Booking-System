@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiMenu, HiX } from "react-icons/hi";
 import HowItWorks from "../components/HowItWorks";
 import FAQ from "../components/FAQ";
 import ContactUs from "../components/ContactUs";
-import heroImage from "../assets/homeroom.avif"; // Image
+import heroImage from "../assets/homeroom.avif";
 
 const Home = () => {
+  useEffect(() => {
+    localStorage.clear();
+  }, []);
+
   return (
     <div className="bg-gray-50 font-sans">
       {/* Hero Section */}
@@ -14,7 +18,6 @@ const Home = () => {
         className="relative bg-cover bg-center text-white py-32 px-6"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
-        {/* Optional: Fancy gradient or blur overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40"></div>
 
         <div className="relative z-10 max-w-3xl mx-auto text-center">

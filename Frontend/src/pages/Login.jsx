@@ -1,56 +1,59 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import loginImage from "../assets/signup.png";
+import { Link, useNavigate } from "react-router-dom";
+import signupImg from "../assets/home.png";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [message, setMessage] = useState({ type: "", text: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage({ type: "", text: "" });
 
     try {
-      const response = await axios.post(
-        "/api/v1/users/login", // 🔁 Make sure this matches your backend
-        formData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await axios.post("/api/v1/users/login", formData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (response.status === 200) {
-        // Save token & user data
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        const { accessToken, user } = response.data.data;
 
-        setMessage({ type: "success", text: "Login successful!" });
-        navigate("/rooms"); // 🚪 Redirect to protected page
+        localStorage.setItem("usertoken", accessToken);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        toast.success(response.data.message);
+        setTimeout(() => {
+          navigate("/rooms");
+        }, 1500);
       }
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
-      setMessage({
-        type: "error",
-        text: error.response?.data?.message || "Login failed. Try again.",
-      });
+      toast.error(error.response?.data?.message || "Login failed. Try again.");
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
-      {/* Left Image Section */}
-      <div className="md:w-1/2 hidden md:flex items-center justify-center bg-[#7472E0] rounded-r-3xl overflow-hidden pr-8">
+      {/* Left Image Side */}
+      <div className="hidden md:flex w-1/2 h-full">
         <img
-          src={loginImage}
-          alt="Login"
-          className="w-full h-full object-contain rounded-r-3xl"
+          src={signupImg}
+          alt="Signup Visual"
+          className="object-cover w-full h-full rounded-r-2xl"
         />
       </div>
 
@@ -60,16 +63,6 @@ const Login = () => {
           <h2 className="text-3xl font-bold text-center text-[#7472E0] mb-6">
             Welcome Back
           </h2>
-
-          {message.text && (
-            <p
-              className={`text-center mb-4 ${
-                message.type === "error" ? "text-red-500" : "text-green-500"
-              }`}
-            >
-              {message.text}
-            </p>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
@@ -81,15 +74,31 @@ const Login = () => {
               onChange={handleChange}
               required
             />
-            <input
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7472E0]"
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
+            <div className="relative">
+              <input
+                className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7472E0]"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => !formData.password && setPasswordFocused(false)}
+                required
+              />
+              {(passwordFocused || formData.password) && (
+                <div
+                  className="absolute inset-y-0 right-3 flex items-center cursor-pointer "
+                  onClick={togglePasswordVisibility}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5 text-gray-500" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5 text-gray-500" />
+                  )}
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               className="w-full py-3 bg-[#7472E0] text-white font-semibold rounded-xl hover:bg-[#5e5ccd] transition"
@@ -100,12 +109,16 @@ const Login = () => {
 
           <p className="text-center text-sm mt-4">
             Don’t have an account?{" "}
-            <a href="/signup" className="text-[#7472E0] hover:underline">
+            <Link
+              to="/user-register"
+              className="text-[#7472E0] hover:underline"
+            >
               Sign Up
-            </a>
+            </Link>
           </p>
         </div>
       </div>
+      <ToastContainer position="top-center" autoClose={2000} />
     </div>
   );
 };

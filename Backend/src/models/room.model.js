@@ -68,16 +68,16 @@ const roomSchema = new Schema({
   facilities: {
     type: [String],
     enum: [
-      "Kitchen Facilities",
-      "Internet availability(Wi-Fi)",
-      "Parking Facilities",
+      "Wi-Fi",
       "Hot Water",
-      "Attach bathroom",
+      "Kitchen",
+      "Parking",
+      "Attach Bathroom",
       "Balcony",
       "Bed",
-      "Wardrobe",
       "Chair",
-      "Desk"
+      "Desk",
+      "Wardrobe"
     ],
     default: []
   },

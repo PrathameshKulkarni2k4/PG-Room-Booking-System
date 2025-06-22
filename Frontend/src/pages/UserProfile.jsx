@@ -1,120 +1,406 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import { useSocket } from "../context/SocketContext.jsx";
 import {
-  FaPhoneAlt,
-  FaEnvelope,
-  FaUser,
-  FaBookmark,
   FaEdit,
-  FaCheck,
-  FaTimes,
+  FaPlus,
+  FaHome,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaUser,
+  FaTrash,
+  FaSignOutAlt,
+  FaBell,
 } from "react-icons/fa";
-
 const UserProfile = () => {
-  const [editMode, setEditMode] = useState(false);
+  const socket = useSocket();
+  const navigate = useNavigate();
 
   const [userData, setUserData] = useState({
-    name: "Akash Sharma",
-    email: "akash@example.com",
-    phone: "+91 9876543210",
+    fullName: "",
+    username: "",
+    email: "",
+    phoneNo: "",
   });
 
-  const [tempData, setTempData] = useState({ ...userData });
+  const [editMode, setEditMode] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: "",
+    newPassword: "",
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [allocatedRooms, setAllocatedRooms] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  const handleEditToggle = () => setEditMode(true);
-  const handleCancel = () => {
-    setTempData({ ...userData });
-    setEditMode(false);
-  };
-  const handleSave = () => {
-    setUserData({ ...tempData });
-    setEditMode(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [userRooms, setUserRooms] = useState([]);
+
+
+  const fetchUserProfile = async () => {
+    try {
+      const res = await axios.get("/api/v1/users/profile", {
+        withCredentials: true,
+      });
+      if (res.data.success) {
+        const { user, notifications } = res.data.data;
+        setUserData(user);
+        setNotifications(notifications);
+        setUnreadCount(notifications.length);
+        setAllocatedRooms(res.data.data.rooms || []);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
   };
 
-  const handleChange = (field, value) => {
-    setTempData((prev) => ({ ...prev, [field]: value }));
+  const fetchAllocatedRooms = async () => {
+    try {
+      const response = await axios.get("/api/v1/booking/user-rooms", {
+        withCredentials: true,
+      });
+
+      console.log(response);
+      setAllocatedRooms(response.data.data || []);
+      setUserRooms(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching allocated rooms:", error);
+      if (error.response && error.response.data?.message) {
+        setErrorMsg(error.response.data.message);
+      } else {
+        setErrorMsg("Failed to fetch allocated rooms.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchUserProfile();
+    fetchAllocatedRooms();
+    if (!socket) return;
+
+    const handleNewNotification = (notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on("new-notification", handleNewNotification);
+    return () => socket.off("new-notification", handleNewNotification);
+  }, [socket]);
+
+  const handleInputChange = (e) => {
+    setUserData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handlePasswordChange = (e) => {
+    setPasswordData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.patch("/api/v1/users/profile", userData, {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      });
+      setMessage(res.data.message);
+      setError("");
+      setEditMode(false);
+    } catch (err) {
+      setMessage("");
+      setError(err.response?.data?.message || "Update failed");
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.patch(
+        "/api/v1/users/profile/password",
+        passwordData,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      setMessage(res.data.message);
+      setError("");
+      setPasswordData({ oldPassword: "", newPassword: "" });
+      setShowPasswordForm(false);
+    } catch (err) {
+      setMessage("");
+      setError(err.response?.data?.message || "Password change failed");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post("/api/v1/users/logout", {}, { withCredentials: true });
+      localStorage.clear();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Failed to log out");
+    }
   };
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-gray-100 to-white py-16 px-6 sm:px-12">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-12">
-        <h2 className="text-5xl font-extrabold text-[#7472E0] mb-2 leading-tight">
-          My Profile
-        </h2>
-        <p className="text-lg text-gray-600">
-          Manage your profile information and preferences
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50 text-gray-800 py-10 px-4">
+      <div className="max-w-6xl mx-auto space-y-6 relative">
+        {/* Top Actions */}
+        <div className="absolute right-0 top-0 flex items-center space-x-4 pr-4">
+          <button
+            onClick={() => {
+              setShowNotifications((prev) => !prev);
+              setUnreadCount(0);
+            }}
+            className="relative p-3 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-600"
+          >
+            <span className="text-xl">🔔</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </button>
 
-      {/* Profile Card */}
-      <div className="max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden grid lg:grid-cols-2 gap-16 p-12 transition-all duration-300">
-        {/* Left Side - Editable Info */}
-        <div className="space-y-10">
-          {/* Header with action */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-semibold text-gray-800 flex items-center gap-3">
-              <FaUser className="text-[#7472E0]" />
-              {editMode ? "Edit Profile" : userData.name}
-            </h3>
-            {!editMode ? (
+          {showNotifications && (
+            <div className="absolute right-0 top-16 mt-3 w-80 bg-white shadow-xl rounded-lg z-20 max-h-96 overflow-y-auto border border-gray-200">
+              <div className="p-4 font-semibold text-gray-700 flex justify-between items-center border-b">
+                <span>Notifications</span>
+                <button
+                  className={`text-xs text-indigo-600 hover:underline ${isClearing ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  disabled={isClearing}
+                  onClick={async () => {
+                    setIsClearing(true);
+                    try {
+                      await axios.delete(
+                        "/api/v1/users/notifications/clear",
+                        {
+                          withCredentials: true,
+                        }
+                      );
+                      setNotifications([]);
+                      setUnreadCount(0);
+                      setShowNotifications(false);
+                    } catch (error) {
+                      console.error("Failed to clear notifications:", error);
+                    } finally {
+                      setIsClearing(false);
+                    }
+                  }}
+                >
+                  {isClearing ? "Clearing..." : "Clear All"}
+                </button>
+              </div>
+              {notifications.length > 0 ? (
+                notifications.map((note, i) => (
+                  <div
+                    key={i}
+                    className="p-4 hover:bg-gray-50 cursor-pointer border-b"
+                    onClick={() => {
+                      if (note._id) navigate(`/notifications/${note._id}`);
+                      setShowNotifications(false);
+                    }}
+                  >
+                    <p className="text-sm">{note.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(note.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-400">
+                  No notifications yet.
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className="px-5 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600"
+          >
+            Log Out
+          </button>
+        </div>
+
+        {/* Header */}
+        <div className="pt-16 mb-10">
+          <h2 className="text-4xl font-bold text-indigo-700">User Profile</h2>
+        </div>
+
+        {(message || error) && (
+          <div
+            className={`mt-24 p-4 rounded-lg font-medium ${message
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+              }`}
+          >
+            {message || error}
+          </div>
+        )}
+
+        {/* Profile Info */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mt-24">
+          <h3 className="text-2xl font-bold mb-6">Personal Information</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {["fullName", "username", "phoneNo"].map((field) => (
+              <div key={field}>
+                <label className="block text-sm font-semibold mb-2 capitalize">
+                  {field === "phoneNo" ? "Phone Number" : field}
+                </label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name={field}
+                    value={userData[field]}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500"
+                  />
+                ) : (
+                  <p className="px-4 py-2 bg-gray-50 border rounded-md">
+                    {userData[field] || "N/A"}
+                  </p>
+                )}
+              </div>
+            ))}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Email</label>
+              <p className="px-4 py-2 bg-gray-50 border rounded-md">
+                {userData.email}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6">
+            <button
+              onClick={() => {
+                setEditMode(!editMode);
+                if (editMode) fetchUserProfile();
+              }}
+              className="px-6 py-2 border text-gray-700 rounded-lg hover:bg-gray-100"
+            >
+              {editMode ? "Cancel" : "Edit Profile"}
+            </button>
+            {editMode && (
               <button
-                className="text-base flex items-center gap-2 px-5 py-2.5 bg-[#7472E0] text-white rounded-lg hover:bg-[#5d5bd1] transition"
-                onClick={handleEditToggle}
+                onClick={handleUpdateProfile}
+                className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                <FaEdit /> Edit
+                Save Changes
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* Change Password */}
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h3 className="text-2xl font-bold mb-6">Change Password</h3>
+          <div className="mb-6">
+            <button
+              onClick={() => setShowPasswordForm(!showPasswordForm)}
+              className="px-6 py-2 border text-indigo-600 rounded-lg hover:bg-indigo-50"
+            >
+              {showPasswordForm ? "Cancel" : "Change Password"}
+            </button>
+          </div>
+
+          {showPasswordForm && (
+            <form onSubmit={handleChangePassword} className="space-y-5">
+              <div className="relative">
+                <label className="block text-sm font-semibold mb-2">
+                  Old Password
+                </label>
+                <input
+                  type={showOldPassword ? "text" : "password"}
+                  name="oldPassword"
+                  value={passwordData.oldPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 border rounded-md"
+                />
+                <div
+                  className="absolute right-3 top-9 cursor-pointer"
+                  onClick={() => setShowOldPassword((prev) => !prev)}
+                >
+                  {showOldPassword ? <EyeOff /> : <Eye />}
+                </div>
+              </div>
+
+              <div className="relative">
+                <label className="block text-sm font-semibold mb-2">
+                  New Password
+                </label>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 border rounded-md"
+                />
+                <div
+                  className="absolute right-3 top-9 cursor-pointer"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                >
+                  {showNewPassword ? <EyeOff /> : <Eye />}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Update Password
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Allocated Rooms */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">Allocated Rooms</h3>
+
+
+
+
+
+          {/* Allocated rooms */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {userRooms.length > 0 ? (
+              userRooms.map((room) => (
+                <div
+                  key={room._id}
+                  onClick={() => navigate(`/rooms/${room._id}`)}
+                  className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition duration-200 relative cursor-pointer group"
+                >
+                  <h4 className="text-xl font-semibold text-indigo-700 mb-2 group-hover:text-indigo-800 transition duration-200">{room.name}</h4>
+                  <p className="text-sm text-gray-600 mb-1">
+                    <span className="font-medium text-gray-700">Location:</span> {room.address}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    <span className="font-medium text-gray-700">Price:</span> ₹{room.price}
+                  </p>
+                </div>
+              ))
             ) : (
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-base rounded-lg hover:bg-green-700 transition"
-                >
-                  <FaCheck /> Save
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500 text-white text-base rounded-lg hover:bg-red-600 transition"
-                >
-                  <FaTimes /> Cancel
-                </button>
+              <div className="col-span-full text-center text-gray-500 py-10">
+                <FaHome className="mx-auto mb-4 text-gray-300 text-6xl" />
+                <p className="text-lg italic">No rooms listed yet. </p>
               </div>
             )}
           </div>
 
-          {/* Profile Fields */}
-          {[["name", FaUser, "Full Name"], ["email", FaEnvelope, "Email Address"], ["phone", FaPhoneAlt, "Phone Number"]].map(
-            ([field, Icon, label]) => (
-              <div key={field} className="flex items-start gap-4">
-                <Icon className="mt-1 text-2xl text-[#7472E0]" />
-                <div className="w-full">
-                  <p className="text-[15px] text-gray-500 mb-1">{label}</p>
-                  {editMode ? (
-                    <input
-                      type={field === "email" ? "email" : "text"}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-[#7472E0] focus:border-[#7472E0] text-lg"
-                      value={tempData[field]}
-                      onChange={(e) => handleChange(field, e.target.value)}
-                    />
-                  ) : (
-                    <p className="text-xl font-medium">{userData[field]}</p>
-                  )}
-                </div>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Right Side - Saved Rooms */}
-        <div className="bg-gray-50 rounded-2xl p-8 shadow-inner">
-          <div className="flex items-center gap-4 mb-5">
-            <FaBookmark className="text-2xl text-[#7472E0]" />
-            <h3 className="text-2xl font-semibold text-gray-800">Saved Rooms</h3>
-          </div>
-          <ul className="space-y-4 text-gray-700 list-disc pl-6 text-lg leading-relaxed">
-            <li>2BHK Flat near Hinjewadi, Pune</li>
-            <li>Studio Apartment, Bandra, Mumbai</li>
-            <li>1BHK PG, Koramangala, Bangalore</li>
-          </ul>
         </div>
       </div>
     </div>
